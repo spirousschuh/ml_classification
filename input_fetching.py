@@ -20,11 +20,11 @@ def predict_label(model, vectorizer, data):
     return class_predictions, probability_for_positive
 
 def get_data():
-    product_data = pd.read_csv('/home/chris/python_projects/coursera/ml_classification/week_1/amazon_baby.csv')
-    file = open('/home/chris/python_projects/coursera/ml_classification/week_1/module-2-assignment-train-idx.json')
+    product_data = pd.read_csv('amazon_baby.csv')
+    file = open('module-2-assignment-train-idx.json')
     train_indices = json.load(file)
     file.close()
-    file = open('/home/chris/python_projects/coursera/ml_classification/week_1/module-2-assignment-test-idx.json')
+    file = open('module-2-assignment-test-idx.json')
     test_indices = json.load(file)
     file.close()
 
@@ -40,6 +40,12 @@ def get_data():
 def build_model(train_data, word_subset=None, read_from_file=False):
     # building the vectorizer that builds the sparse word counter matrix
     sentiment_model = None
+    if word_subset is None:
+        vectorizer_file = 'complex_vectorizer.pickle'
+        model_file = 'complexe_model.pickle'
+    else:
+        vectorizer_file = 'vectorizer.pickle'
+        model_file = 'model.pickle'
     if not read_from_file:
         if not word_subset is None:
             vectorizer = CountVectorizer(token_pattern=r'\b\w+\b', vocabulary=word_subset)
@@ -49,14 +55,15 @@ def build_model(train_data, word_subset=None, read_from_file=False):
         # build the model
         sentiment_model = LogisticRegression()
         sentiment_model.fit(train_matrix, train_data['sentiment'])
-        with open('vectorize.pickle', 'wb') as handle:
+        with open(vectorizer_file, 'wb') as handle:
             pickle.dump(vectorizer, handle)
-        with open('model.pickle', 'wb') as handle:
+        with open(model_file, 'wb') as handle:
             pickle.dump(sentiment_model, handle)
     else:
-        with open('vectorize.pickle', 'rb') as handle:
+
+        with open(vectorizer_file, 'rb') as handle:
             vectorizer = pickle.load(handle)
-        with open('model.pickle', 'rb') as handle:
+        with open(model_file, 'rb') as handle:
             sentiment_model = pickle.load(handle)
     coefficients = sentiment_model.coef_
     print "The number of positive coefficients is " + str(len(coefficients[coefficients > 0]))
@@ -104,8 +111,7 @@ def main():
 
     # build model with significant words
     significant_words = ['love', 'great', 'easy', 'old', 'little', 'perfect', 'loves', 'well', 'able', 'car', 'broke', 'less', 'even', 'waste', 'disappointed', 'work', 'product', 'money', 'would', 'return']
-    simple_model, simple_vectorizer = build_model(train_data, significant_words)
-    simple_labels, simple_probabilities = predict_label(simple_model, simple_vectorizer, test_data)
+    simple_model, simple_vectorizer = build_model(train_data, significant_words, read_from_file=True)
     simple_pairs = get_sorted_word_coefficients(simple_vectorizer, simple_model)
     print simple_pairs
     complex_pairs = get_sorted_word_coefficients(vectorizer, sentiment_model)
@@ -114,7 +120,7 @@ def main():
             if word == com_word:
                 print word + " has the simple coeff " + str(coef) + " and the complex " + str(com_coeff)
 
-
+    # TODOfind out why we cannot distunguish between complex and simple model
     # accuracy comparison
     labels, _ = predict_label(sentiment_model, vectorizer, train_data)
     train_data['predicted'] = labels
@@ -135,6 +141,19 @@ def main():
     test_data['predicted_simple'] = labels
     print "The accuracy of the simple model on the test data is: "
     print determine_accuracy(test_data, simple=True)
+
+    # majority classifier
+    positive_reviews = float(len(train_data.loc[train_data['sentiment'] == 1]))
+    negative_reviews = float(len(train_data.loc[train_data['sentiment'] == -1]))
+    print "The number of positive reviews is " + str(positive_reviews)
+    print "The numnber of negative reviews is " + str(negative_reviews)
+    print "The accuracy of the majority classifier on train data is " + str(positive_reviews / (positive_reviews + negative_reviews))
+
+    print "############## TEST-DATA ############"
+    positive_reviews_test = float(len(test_data.loc[test_data['sentiment'] == 1]))
+    negative_reviews_test = float(len(test_data.loc[test_data['sentiment'] == -1]))
+    print "The accuracy of the majority classifier on test data is " + str(positive_reviews_test / (positive_reviews_test + negative_reviews_test))
+
 
 
 def get_sorted_word_coefficients(vectorizer, model):
